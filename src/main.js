@@ -17,6 +17,7 @@ const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 
 const reducedMQ = matchMedia('(prefers-reduced-motion: reduce)');
 let reduced = reducedMQ.matches;
+let quality = 1; // render-resolution multiplier, managed by govern()
 const low =
   matchMedia('(max-width: 820px)').matches ||
   (navigator.hardwareConcurrency || 8) <= 4 ||
@@ -329,6 +330,7 @@ let switching = false;
 let collarLabels = [];
 let siteLabel = null;
 let passLabels = [];
+let relayLabels = [];
 
 function initRenderer() {
   try {
@@ -347,7 +349,8 @@ function initRenderer() {
 function resize() {
   if (!renderer) return;
   const w = innerWidth, h = innerHeight;
-  const px = Math.min(devicePixelRatio || 1, w < 820 ? CONFIG.render.maxPixelRatioMobile : CONFIG.render.maxPixelRatioDesktop);
+  const cap = Math.min(devicePixelRatio || 1, w < 820 ? CONFIG.render.maxPixelRatioMobile : CONFIG.render.maxPixelRatioDesktop);
+  const px = Math.max(0.75, cap * quality);
   renderer.setPixelRatio(px);
   renderer.setSize(w, h, false);
   for (const s of Object.values(scenes)) {
@@ -378,7 +381,7 @@ async function boot() {
       .catch((err) => { console.warn('Cow model failed to load; using fallback.', err); return null; });
     const [{ createValley }, { createCollar }] = await Promise.all([valleyMod, import('./scenes/collar.js')]);
     scenes.valley = createValley({ low, reduced, cowGltf: await cowGltf });
-    scenes.collar = createCollar({ reduced, renderer });
+    scenes.collar = createCollar({ reduced, renderer, low });
     setLoad(0.35);
     const [{ createGlobe }, topo] = await Promise.all([
       import('./scenes/globe.js'),
@@ -398,7 +401,8 @@ async function boot() {
     const [b1, b2, b3] = chapters[3].beats;
     b1.to = b2.from = pm.linkIn;
     b2.to = b3.from = pm.linkOut;
-    collarLabels = ['chip.lbl.cover', 'chip.lbl.antenna', 'chip.lbl.modem', 'chip.lbl.sim', 'chip.lbl.battery', 'chip.lbl.shell'].map((key) => {
+    const narrow = matchMedia('(max-width: 820px)').matches; // the HUD already shows the spec
+    collarLabels = ['chip.lbl.cover', 'chip.lbl.antenna', narrow ? 'chip.lbl.modem.short' : 'chip.lbl.modem', 'chip.lbl.sim', 'chip.lbl.battery', 'chip.lbl.shell'].map((key) => {
       const el = document.createElement('div');
       el.className = 'label3d';
       el.innerHTML = `<span data-i18n="${key}">${i18n.t(key)}</span>`;
@@ -409,6 +413,13 @@ async function boot() {
     siteLabel.className = 'label3d site';
     siteLabel.innerHTML = `<span data-i18n="gap.site">${i18n.t('gap.site')}</span>`;
     labelsEl.append(siteLabel);
+    relayLabels = ['collar', 'sat', 'gs'].map((k) => {
+      const el = document.createElement('div');
+      el.className = `label3d relay-${k}`;
+      el.innerHTML = '<span></span>';
+      labelsEl.append(el);
+      return el;
+    });
     passLabels = ['collar', 'sat'].map((k) => {
       const el = document.createElement('div');
       el.className = `label3d pass-${k}`;
@@ -532,7 +543,7 @@ let blend = null;
 function ensureBlend() {
   if (blend) return blend;
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  const opts = { samples: 4, colorSpace: THREE.SRGBColorSpace };
+  const opts = { samples: low ? 0 : 4, colorSpace: THREE.SRGBColorSpace };
   const targets = [new THREE.WebGLRenderTarget(size.x, size.y, opts), new THREE.WebGLRenderTarget(size.x, size.y, opts)];
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -683,7 +694,7 @@ const smooth01 = (x) => x * x * (3 - 2 * x);
  * shader compiles and texture uploads never land mid-transition as a hitch.
  */
 function warmUp() {
-  const rt = new THREE.WebGLRenderTarget(64, 64, { samples: 4, colorSpace: THREE.SRGBColorSpace });
+  const rt = new THREE.WebGLRenderTarget(64, 64, { samples: low ? 0 : 4, colorSpace: THREE.SRGBColorSpace });
   const t = { time: 0, dt: 0.016, sats: state.sats, exact: true, passTime: 0.5 };
   scenes.valley.update({ ...t, mode: 'pass', p: 0.5 });
   scenes.globe.update({ ...t, mode: 'gap', p: 0.86, dive: 0.5 });
@@ -734,9 +745,29 @@ function switchScene(want, seamless = false) {
   }, 230);
 }
 
+// Adaptive resolution: if the device can't hold ~40 fps, render fewer pixels;
+// give them back once there's headroom. Checked about every 1.5 s.
+const perf = { t: 0, n: 0, sum: 0, good: 0 };
+function govern(now) {
+  const dt = now - perf.t;
+  perf.t = now;
+  if (dt <= 0 || dt > 250) return; // tab switches, first frame, debugger
+  perf.sum += dt;
+  if (++perf.n < 90) return;
+  const avg = perf.sum / perf.n;
+  perf.n = perf.sum = 0;
+  // Step down fast; step back up only after a few smooth windows in a row.
+  perf.good = avg < 19 ? perf.good + 1 : 0;
+  let next = quality;
+  if (avg > 25) next = Math.max(0.5, quality * 0.8);
+  else if (perf.good >= 3 && quality < 1) { next = Math.min(1, quality + 0.1); perf.good = 0; }
+  if (next !== quality) { quality = next; resize(); }
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
-  if (document.hidden) { last = now; return; }
+  if (document.hidden) { last = now; perf.t = 0; return; }
+  govern(now);
   tick(now);
 }
 
@@ -805,7 +836,8 @@ function tick(now) {
   const showChip = shown === 'collar' && c.id === 'chip';
   const showSite = shown === 'globe' && c.id === 'gap';
   const showPass = shown === 'valley' && c.id === 'pass';
-  const showLabels = showChip || showSite || showPass;
+  const showRelay = shown === 'globe' && c.id === 'relay';
+  const showLabels = showChip || showSite || showPass || showRelay;
   if (!s) {
     labelsEl.style.display = 'none';
     updateHud(c, null);
@@ -826,6 +858,14 @@ function tick(now) {
     setLabel(lc, collarText, sp.collar, true, tel.link === 'up' || tel.buffered === 0 ? 'ok' : 'warn');
     setLabel(ls, `${i18n.t('pass.lbl.sat')} · ${tel.el.toFixed(0)}°`, sp.sat, tel.el > 7, tel.link === 'up' ? 'ok' : '');
   } else passLabels.forEach((el) => el.classList.remove('on'));
+  if (showRelay) {
+    const sp = s.relayScreen(innerWidth, innerHeight);
+    const st = tel.relayState;
+    const [lc, ls, lg] = relayLabels;
+    setLabel(lc, 'COLLAR-01', sp.collar, true, st === 'collar' ? 'warn' : '');
+    setLabel(ls, i18n.t(st === 'sat' ? 'relay.lbl.carry' : 'relay.lbl.sat'), sp.sat, true, st === 'sat' ? 'ok' : '');
+    setLabel(lg, i18n.t('relay.lbl.gs'), sp.gs, true, st === 'down' || st === 'net' ? 'ok' : '', true);
+  } else relayLabels.forEach((el) => el.classList.remove('on'));
   if (siteLabel) {
     const on = showSite && c.p > 0.18;
     if (on) {
@@ -846,10 +886,13 @@ function tick(now) {
   }
 }
 
-function setLabel(el, text, pos, on, tone) {
+function setLabel(el, text, pos, on, tone, left = false) {
   const span = el.firstChild;
   if (span.textContent !== text) span.textContent = text;
-  el.style.transform = `translate(${pos.x - 3.5}px, ${pos.y}px) translateY(-50%)`;
+  el.classList.toggle('left', left);
+  el.style.transform = left
+    ? `translate(${pos.x + 3.5}px, ${pos.y}px) translate(-100%, -50%)`
+    : `translate(${pos.x - 3.5}px, ${pos.y}px) translateY(-50%)`;
   el.classList.toggle('on', on && pos.visible);
   el.dataset.tone = tone || '';
 }

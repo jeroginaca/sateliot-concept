@@ -231,7 +231,7 @@ export function createGlobe({ low, reduced, topo }) {
   const satPts = new THREE.Points(
     satGeo,
     new THREE.PointsMaterial({
-      map: glowTexture(), color: '#e8f4ff', size: 0.2, sizeAttenuation: true,
+      map: glowTexture(), color: '#e8f4ff', size: 0.26, sizeAttenuation: true,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     })
   );
@@ -239,7 +239,7 @@ export function createGlobe({ low, reduced, topo }) {
   scene.add(satPts);
   const orbitGroup = new THREE.Group();
   scene.add(orbitGroup);
-  const orbitMat = new THREE.LineBasicMaterial({ color: '#7fa6d6', transparent: true, opacity: 0.16, depthWrite: false });
+  const orbitMat = new THREE.LineBasicMaterial({ color: '#8fb6e6', transparent: true, opacity: 0.26, depthWrite: false, blending: THREE.AdditiveBlending });
 
   // Link line from the site to whichever satellite is overhead.
   const linkGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
@@ -273,11 +273,20 @@ export function createGlobe({ low, reduced, topo }) {
   const relaySat = new THREE.Group();
   const relayGlow = glowSprite(new THREE.Color('#ffffff'), 0.16);
   relaySat.add(relayGlow);
-  const msgDot = glowSprite(COLORS.led, 0.1);
+  const msgDot = glowSprite(COLORS.led, 0.13);
   scene.add(msgDot);
   scene.add(relaySat);
-  const gsDir = gsDirs[0];
-  const path = arcPoints(siteDir, gsDir, 160, 0, SAT_R);
+  // The model's southern station: close to the valley, so the whole hand-off
+  // (collar → satellite → ground → internet) reads in one frame.
+  const GS_I = 1;
+  const gsDir = gsDirs[GS_I];
+  // The satellite keeps going after the downlink: its path runs past the
+  // station along the same great circle (GS_AT = fraction where it's overhead).
+  const GS_AT = 1 / 1.7;
+  const passAxis = new THREE.Vector3().crossVectors(siteDir, gsDir).normalize();
+  const pathEnd = siteDir.clone().applyAxisAngle(passAxis, siteDir.angleTo(gsDir) / GS_AT);
+  const path = arcPoints(siteDir, pathEnd, 200, 0, SAT_R);
+  const gsIdx = Math.round(GS_AT * (path.length - 1));
   const trailGeo = new THREE.BufferGeometry().setFromPoints(path);
   const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: COLORS.led, transparent: true, opacity: 0.8 }));
   trail.frustumCulled = false;
@@ -287,7 +296,7 @@ export function createGlobe({ low, reduced, topo }) {
   scene.add(downLine);
   // Internet leg: ground station back to the farm near the valley.
   const farmDir = latLon(M.site.lat + 1.2, M.site.lon + 2.2);
-  const netPts = arcPoints(gsDir, farmDir, 160, 0.25, 1.002);
+  const netPts = arcPoints(gsDir, farmDir, 160, 0.08, 1.002);
   const netGeo = new THREE.BufferGeometry().setFromPoints(netPts);
   const netLine = new THREE.Line(netGeo, new THREE.LineDashedMaterial({ color: '#dfe8f5', dashSize: 0.02, gapSize: 0.015, transparent: true, opacity: 0.85 }));
   netLine.computeLineDistances();
@@ -316,7 +325,7 @@ export function createGlobe({ low, reduced, topo }) {
     const showRelay = mode === 'relay';
     const showConst = mode === 'constellation' || mode === 'scale';
     relaySat.visible = msgDot.visible = trail.visible = downLine.visible = netLine.visible = showRelay;
-    gsMarkers.forEach((g) => (g.visible = showRelay));
+    gsMarkers.forEach((g, i) => (g.visible = showRelay && i === GS_I));
     satPts.visible = orbitGroup.visible = showConst;
     linkLine.visible = showConst;
 
@@ -356,7 +365,7 @@ export function createGlobe({ low, reduced, topo }) {
     } else if (mode === 'relay') {
       mat.uniforms.uReveal.value = 1;
       mat.uniforms.uCovAlpha.value = 0.35;
-      const s = smooth(0.08, 0.72, p);
+      const s = p < 0.72 ? smooth(0.08, 0.72, p) * GS_AT : lerp(GS_AT, 1, (p - 0.72) / 0.28);
       const i = Math.min(path.length - 1, Math.round(s * (path.length - 1)));
       relaySat.position.copy(path[i]);
       trailGeo.setDrawRange(0, i + 1);
@@ -368,26 +377,24 @@ export function createGlobe({ low, reduced, topo }) {
         const k = Math.min(netPts.length - 1, Math.round(net * (netPts.length - 1)));
         msgDot.position.copy(netPts[k]);
       } else if (down > 0) {
-        msgDot.position.lerpVectors(path[path.length - 1], gsDir, down);
+        msgDot.position.lerpVectors(path[gsIdx], gsDir, down);
       } else {
         msgDot.position.lerpVectors(siteDir, relaySat.position, up);
       }
       netGeo.setDrawRange(0, Math.round(net * netPts.length));
       downLine.material.opacity = down > 0 && net < 1 ? 0.9 : 0;
       telemetry.relayState = p < 0.06 ? 'collar' : down <= 0 ? 'sat' : net <= 0.05 ? 'down' : 'net';
-      tmp.copy(relaySat.position).normalize();
-      const cLat = (Math.asin(tmp.y) * 180) / Math.PI;
-      const cLon = (Math.atan2(-tmp.z, tmp.x) * 180) / Math.PI;
-      const end = smooth(0.75, 1, p);
-      dist = lerp(3.0, 4.2, end);
-      lat = lerp(cLat - 8, 10, end);
-      lon = lerp(cLon, -45, end);
+      // One framing for the whole hand-off, drifting gently with scroll.
+      dist = lerp(2.75, 2.95, p);
+      lat = lerp(-47, -55, p);
+      lon = lerp(-70, -62, p);
       shiftX = 0.18;
     } else {
       // constellation / scale
       mat.uniforms.uReveal.value = 1;
       mat.uniforms.uCovAlpha.value = mode === 'scale' ? 0.55 : 0.3;
-      setConstellation(sats);
+      // Scale says "already in orbit": always show what's actually launched.
+      setConstellation(mode === 'scale' ? CONFIG.facts.satellitesLaunched : sats);
       if (!reduced) simT += dt * (mode === 'scale' ? 90 : 160);
       else simT = 1800;
       const pos = satGeo.attributes.position;
@@ -414,12 +421,13 @@ export function createGlobe({ low, reduced, topo }) {
       if (mode === 'constellation') {
         dist = 4.3; lat = -28; lon = -62; shiftX = 0.2;
       } else {
-        dist = 4.3; lat = 8; lon = reduced ? -20 : -20 + time * 4; shiftX = 0.22;
+        // Slow drift across the Americas and the Atlantic, the collar in view.
+        dist = 4.3; lat = -12; lon = reduced ? -55 : -55 + Math.sin(time * 0.08) * 25; shiftX = 0.22;
       }
     }
     if (mode !== 'constellation' && mode !== 'scale') siteMarker.material.color.copy(COLORS.led);
 
-    if (portrait) { shiftY = shiftX ? -0.2 : 0; shiftX = 0; }
+    if (portrait) { shiftY = shiftX ? -0.15 : 0; shiftX = 0; } // clear of the HUD above, the card below
     camPos.copy(camDir(lat, lon)).multiplyScalar(dist * fit);
     const k = reduced || exact || firstFrame ? 1 : 1 - Math.exp(-dt * 5);
     camera.position.lerp(camPos, k);
@@ -434,6 +442,15 @@ export function createGlobe({ low, reduced, topo }) {
     return telemetry;
   }
 
+  /** Screen positions (px) of the relay actors, for HTML labels. */
+  function relayScreen(w, h) {
+    const at = (v, r = 1) => {
+      tmp.copy(v).multiplyScalar(r).project(camera);
+      return { x: (tmp.x * 0.5 + 0.5) * w, y: (-tmp.y * 0.5 + 0.5) * h, visible: tmp.z < 1 };
+    };
+    return { collar: at(siteDir, 1.005), sat: at(relaySat.position), gs: at(gsDir, 1.005) };
+  }
+
   /** Screen position (px) of the collar site, and whether it faces the camera. */
   function siteScreen(w, h) {
     tmp.copy(siteDir).multiplyScalar(1.005).project(camera);
@@ -446,6 +463,7 @@ export function createGlobe({ low, reduced, topo }) {
     camera,
     update,
     siteScreen,
+    relayScreen,
     resize(w, h) {
       aspect = w / h; viewW = w; viewH = h;
       camera.aspect = aspect;

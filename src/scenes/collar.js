@@ -214,7 +214,7 @@ function strapGeometry(radius, width, thick) {
   return geo;
 }
 
-export function createCollar({ reduced, renderer }) {
+export function createCollar({ reduced, renderer, low = false }) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#05070c');
   const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 100);
@@ -232,7 +232,7 @@ export function createCollar({ reduced, renderer }) {
   key.position.set(3, 6, 4);
   scene.add(key);
   // Soft shadows ground the parts on each other, closed and exploded.
-  if (renderer) {
+  if (renderer && !low) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     key.castShadow = true;
@@ -628,8 +628,8 @@ export function createCollar({ reduced, renderer }) {
     labelPositions,
     resize(w, h) {
       aspect = w / h; vw = w; vh = h;
-      offX = aspect > 0.9 ? -w * 0.16 : w * 0.18;
-      offY = aspect > 0.9 ? 0 : h * 0.14;
+      offX = aspect > 0.9 ? -w * 0.16 : w * 0.08; // portrait: leave room for labels on the right
+      offY = aspect > 0.9 ? 0 : h * 0.1;
       camera.aspect = aspect;
       camera.setViewOffset(w, h, offX, offY, w, h);
       camera.updateProjectionMatrix();

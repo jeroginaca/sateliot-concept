@@ -37,6 +37,7 @@ const en = {
   'chip.lbl.cover': 'Status LED',
   'chip.lbl.antenna': 'Cellular antenna',
   'chip.lbl.modem': `Standard ${F.technology} modem · ${F.standard}`,
+  'chip.lbl.modem.short': `Standard ${F.technology} modem`,
   'chip.lbl.sim': 'Standard SIM',
   'chip.lbl.battery': 'Battery',
   'chip.lbl.shell': 'Housing',
@@ -62,6 +63,9 @@ const en = {
   'relay.b2': 'It carries it along the orbit to a ground station and hands it down.',
   'relay.b3': 'From there it reaches the farmer\'s phone over the internet.',
   'relay.honest': '<strong>Not real-time yet.</strong> Today a message waits for the next pass and then for the next ground contact. That wait shrinks as more satellites launch.',
+  'relay.lbl.sat': 'Satellite',
+  'relay.lbl.carry': 'Satellite · 1 msg on board',
+  'relay.lbl.gs': 'Ground station (model)',
   'relay.phone.app': 'Herd',
   'relay.phone.title': 'Collar 01 checked in',
   'relay.phone.body': 'Position and temperature received via satellite.',
@@ -136,6 +140,7 @@ const en = {
   'form.err': 'Please fill in your name and a valid email.',
 
   'footer.concept': 'Unofficial concept redesign. Not affiliated with or endorsed by Sateliot.',
+  'footer.case': 'Read the case study →',
   'footer.facts': 'Company figures come from public information. Coverage maps, orbits and estimates are illustrative.',
 
   // HUD
@@ -222,6 +227,7 @@ const es = {
   'chip.lbl.cover': 'LED de estado',
   'chip.lbl.antenna': 'Antena celular',
   'chip.lbl.modem': `Módem ${F.technology} estándar · ${F.standard}`,
+  'chip.lbl.modem.short': `Módem ${F.technology} estándar`,
   'chip.lbl.sim': 'SIM estándar',
   'chip.lbl.battery': 'Batería',
   'chip.lbl.shell': 'Carcasa',
@@ -247,6 +253,9 @@ const es = {
   'relay.b2': 'Lo lleva a lo largo de su órbita hasta una estación terrena y lo descarga.',
   'relay.b3': 'Desde allí llega por internet al móvil del ganadero.',
   'relay.honest': '<strong>Todavía no es tiempo real.</strong> Hoy un mensaje espera al próximo paso y luego al próximo contacto con tierra. Esa espera se acorta a medida que se lanzan más satélites.',
+  'relay.lbl.sat': 'Satélite',
+  'relay.lbl.carry': 'Satélite · 1 msj a bordo',
+  'relay.lbl.gs': 'Estación terrena (modelo)',
   'relay.phone.app': 'Rebaño',
   'relay.phone.title': 'Collar 01 ha reportado',
   'relay.phone.body': 'Posición y temperatura recibidas vía satélite.',
@@ -321,6 +330,7 @@ const es = {
   'form.err': 'Indica tu nombre y un email válido.',
 
   'footer.concept': 'Rediseño conceptual no oficial. Sin afiliación ni respaldo de Sateliot.',
+  'footer.case': 'Leer el caso de estudio →',
   'footer.facts': 'Las cifras de la empresa proceden de información pública. Mapas de cobertura, órbitas y estimaciones son ilustrativos.',
 
   'hud.title': 'Telemetría',
