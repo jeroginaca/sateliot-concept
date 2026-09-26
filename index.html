@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Sateliot concept: put a sensor anywhere</title>
+    <meta name="description" content="Unofficial concept redesign of Sateliot's website: 5G NB-IoT satellite connectivity for remote assets, told through one livestock collar in Patagonia." />
+    <meta name="theme-color" content="#05070b" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305070b'/%3E%3Ccircle cx='16' cy='20' r='3' fill='%23ffb23f'/%3E%3Cpath d='M9 13a10 10 0 0 1 14 0M5 9a15 15 0 0 1 22 0' stroke='%236ff2c2' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <a class="skip" href="#main" data-i18n="ui.skip">Skip to content</a>
+
+    <div id="loader" role="status" aria-live="polite">
+      <div class="loader-inner">
+        <div class="loader-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <p class="loader-title" data-i18n="loader.title">Acquiring signal</p>
+        <p class="loader-pct mono"><span id="loader-pct">0</span>%</p>
+      </div>
+    </div>
+
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <div id="vignette" aria-hidden="true"></div>
+    <div id="veil" aria-hidden="true"></div>
+    <div id="labels" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#hero" aria-label="Sateliot concept, back to top">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="16" r="2.4" fill="var(--led)"/><path d="M6.5 10.5a8 8 0 0 1 11 0M3.5 7a12.5 12.5 0 0 1 17 0" stroke="var(--signal)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+        <span class="wordmark">sateliot</span><span class="tag mono" data-i18n="meta.concept">concept</span>
+      </a>
+      <div class="controls">
+        <button id="lang" class="chip-btn mono" type="button" data-i18n-aria="ui.lang.switch">ES</button>
+        <button id="sound" class="chip-btn mono" type="button" aria-pressed="false">
+          <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor"/><path class="waves" d="M13 7.5a3.5 3.5 0 0 1 0 5M15 5a7 7 0 0 1 0 10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          <span data-i18n="ui.sound.off">Sound off</span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="rail" aria-label="Chapters"><ol></ol></nav>
+    <aside id="hud" aria-label="Telemetry" aria-live="off"></aside>
+
+    <main id="main">
+      <!-- 1 · Hero -->
+      <section id="hero" class="chapter" style="--h: 260vh">
+        <div class="sticky">
+          <div class="panel panel-hero">
+            <p class="kicker mono" data-i18n="hero.kicker"></p>
+            <h1 data-i18n-html="hero.title"></h1>
+            <p class="lede" data-i18n="hero.body"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2 · The gap -->
+      <section id="gap" class="chapter" style="--h: 320vh">
+        <div class="sticky">
+          <div class="panel">
+            <p class="kicker mono" data-i18n="gap.kicker"></p>
+            <h2 data-i18n="gap.title"></h2>
+            <p data-i18n="gap.body"></p>
+            <div class="beats">
+              <p class="beat callout" data-from="0.72" data-to="1.01" data-i18n-html="gap.ocean"></p>
+            </div>
+            <p class="note mono" data-i18n="gap.note"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 · The same chip -->
+      <section id="chip" class="chapter" style="--h: 260vh">
+        <div class="sticky">
+          <div class="panel">
+            <p class="kicker mono" data-i18n="chip.kicker"></p>
+            <h2 data-i18n="chip.title"></h2>
+            <p data-i18n="chip.body"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 · The pass (scroll-scrubbed, driven by passTime) -->
+      <section id="pass" class="chapter" style="--h: 560vh">
+        <div class="sticky">
+          <div class="panel">
+            <p class="kicker mono" data-i18n="pass.kicker"></p>
+            <div class="beats">
+              <div class="beat" data-from="-0.01" data-to="0.34">
+                <h2 data-i18n="pass.b1.title"></h2>
+                <p data-i18n="pass.b1.body"></p>
+              </div>
+              <div class="beat" data-from="0.34" data-to="0.7">
+                <h2 data-i18n="pass.b2.title"></h2>
+                <p data-i18n="pass.b2.body"></p>
+              </div>
+              <div class="beat" data-from="0.7" data-to="1.01">
+                <h2 data-i18n="pass.b3.title"></h2>
+                <p data-i18n="pass.b3.body"></p>
+              </div>
+            </div>
+          </div>
+          <div class="scrubber" aria-hidden="true">
+            <div class="scrub-track"><span class="scrub-link"></span><span class="scrub-head"></span></div>
+            <div class="scrub-labels mono"><span data-i18n="pass.rise"></span><span data-i18n="pass.hint"></span><span data-i18n="pass.set"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 · Store and forward -->
+      <section id="relay" class="chapter" style="--h: 380vh">
+        <div class="sticky">
+          <div class="panel">
+            <p class="kicker mono" data-i18n="relay.kicker"></p>
+            <h2 data-i18n="relay.title"></h2>
+            <ol class="steps">
+              <li class="step" data-from="0" data-to="1.01"><span class="mono">01</span><span data-i18n="relay.b1"></span></li>
+              <li class="step" data-from="0.3" data-to="1.01"><span class="mono">02</span><span data-i18n="relay.b2"></span></li>
+              <li class="step" data-from="0.8" data-to="1.01"><span class="mono">03</span><span data-i18n="relay.b3"></span></li>
+            </ol>
+            <p class="callout honest" data-i18n-html="relay.honest"></p>
+          </div>
+          <div class="phone step" data-from="0.9" data-to="1.01" aria-hidden="true">
+            <div class="phone-notch"></div>
+            <div class="notif">
+              <div class="notif-head mono"><span class="notif-icon"></span><span data-i18n="relay.phone.app"></span><span class="notif-time" data-i18n="relay.phone.now"></span></div>
+              <p class="notif-title" data-i18n="relay.phone.title"></p>
+              <p class="notif-body" data-i18n="relay.phone.body"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 · Today → tomorrow -->
+      <section id="constellation" class="chapter" style="--h: 180vh">
+        <div class="sticky">
+          <div class="panel panel-wide">
+            <p class="kicker mono" data-i18n="const.kicker"></p>
+            <h2 data-i18n="const.title"></h2>
+            <p data-i18n="const.body"></p>
+            <div class="const-control">
+              <label for="sats" class="mono small" data-i18n="const.slider"></label>
+              <div class="const-row">
+                <input id="sats" type="range" step="1" />
+                <output id="sats-out" class="mono big" for="sats"></output>
+              </div>
+              <div class="presets" role="group">
+                <button type="button" class="preset" data-preset="today" data-i18n="const.today"></button>
+                <button type="button" class="preset" data-preset="planned" data-i18n="const.planned"></button>
+                <button type="button" class="preset" data-preset="roadmap" data-i18n="const.roadmap"></button>
+              </div>
+            </div>
+            <div class="timeline">
+              <svg id="const-timeline" viewBox="0 0 1440 44" preserveAspectRatio="none" role="img"></svg>
+              <div class="timeline-axis mono"><span>00:00</span><span data-i18n="const.axis"></span><span>24:00</span></div>
+            </div>
+            <div class="stats">
+              <div><strong id="const-passes" class="mono"></strong><span data-i18n="const.passes"></span></div>
+              <div><strong id="const-gap" class="mono"></strong><span data-i18n="const.gap"></span></div>
+            </div>
+            <p class="note mono" data-i18n="const.note"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7 · Scale -->
+      <section id="scale" class="chapter" style="--h: 170vh">
+        <div class="sticky">
+          <div class="panel panel-wide">
+            <p class="kicker mono" data-i18n="scale.kicker"></p>
+            <h2 data-i18n="scale.title"></h2>
+            <ul class="counters" id="counters"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8 · FAQ + estimator -->
+      <section id="faq" class="chapter flow">
+        <div class="flow-inner">
+          <header class="flow-head">
+            <p class="kicker mono" data-i18n="faq.kicker"></p>
+            <h2 data-i18n="faq.title"></h2>
+          </header>
+          <div class="faq-grid">
+            <div class="accordion" id="accordion"></div>
+            <div class="calc" id="calc">
+              <div class="calc-head">
+                <h3 data-i18n="calc.title"></h3>
+                <span class="badge mono" data-i18n="calc.badge"></span>
+              </div>
+              <label for="calc-msgs" class="mono small" data-i18n="calc.msgs"></label>
+              <div class="const-row">
+                <input id="calc-msgs" type="range" step="1" />
+                <output id="calc-msgs-out" class="mono big" for="calc-msgs"></output>
+              </div>
+              <p class="mono small" id="calc-size-label" data-i18n="calc.size"></p>
+              <div class="presets" role="radiogroup" aria-labelledby="calc-size-label" id="calc-size"></div>
+              <div class="calc-out">
+                <div><strong id="calc-passes" class="mono"></strong><span data-i18n="calc.out.passes"></span></div>
+                <div><strong id="calc-windows" class="mono"></strong><span data-i18n="calc.out.windows"></span></div>
+                <div><strong id="calc-median" class="mono"></strong><span data-i18n="calc.out.median"></span></div>
+                <div><strong id="calc-p90" class="mono"></strong><span data-i18n="calc.out.p90"></span></div>
+              </div>
+              <div class="timeline">
+                <svg id="calc-timeline" viewBox="0 0 1440 56" preserveAspectRatio="none" role="img"></svg>
+                <div class="legend mono">
+                  <span><i class="lg-pass"></i><span data-i18n="calc.legend.pass"></span></span>
+                  <span><i class="lg-msg"></i><span data-i18n="calc.legend.msg"></span></span>
+                  <span><i class="lg-del"></i><span data-i18n="calc.legend.del"></span></span>
+                </div>
+              </div>
+              <p class="note mono" data-i18n="calc.note"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9 · CTA -->
+      <section id="contact" class="chapter" style="--h: 150vh">
+        <div class="sticky">
+          <div class="panel panel-form">
+            <p class="kicker mono" data-i18n="cta.kicker"></p>
+            <h2 class="cta-title" data-i18n="cta.title"></h2>
+            <p data-i18n="cta.body"></p>
+            <form id="contact-form" novalidate>
+              <div class="field"><label for="f-name" data-i18n="form.name"></label><input id="f-name" name="name" autocomplete="name" required /></div>
+              <div class="field"><label for="f-company" data-i18n="form.company"></label><input id="f-company" name="company" autocomplete="organization" /></div>
+              <div class="field"><label for="f-email" data-i18n="form.email"></label><input id="f-email" name="email" type="email" autocomplete="email" required /></div>
+              <div class="field">
+                <label for="f-use" data-i18n="form.use"></label>
+                <select id="f-use" name="use">
+                  <option value="livestock" data-i18n="form.use.livestock"></option>
+                  <option value="maritime" data-i18n="form.use.maritime"></option>
+                  <option value="agriculture" data-i18n="form.use.agri"></option>
+                  <option value="other" data-i18n="form.use.other"></option>
+                </select>
+              </div>
+              <div class="field full"><label for="f-msg" data-i18n="form.msg"></label><textarea id="f-msg" name="message" rows="3"></textarea></div>
+              <div class="form-foot full">
+                <button type="submit" class="send" data-i18n="form.send"></button>
+                <p id="form-status" class="mono small" role="status" aria-live="polite"></p>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p><strong data-i18n="footer.concept"></strong></p>
+      <p class="mono small" data-i18n="footer.facts"></p>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
